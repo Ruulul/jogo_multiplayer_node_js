@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Escolha seu nome no jogo aqui</title>
+	<style>
+		* {
+			text-align:center;
+		}
+		input:valid {
+			border: 2px solid green;
+		}
+		input:invalid {
+			border: 2px solid red;
+		}
+	</style>
+</head>
+<body>
+	<h1>Escolha seu nome no jogo aqui</h1>
+	<div>PS: nenhum dado será registrado</div>
+	<br><br>
+	<div>
+	<form action='/jogo' method="post" id="register">
+		<label for="nickname">Seu nick:</label>
+		<input type="text" name="nickname" id="nickname" placeholder="Seu apelido" minlength=3 maxlength=10 required><br><br>
+		<input type="hidden" name="project" value="mogame">
+		<input type="submit" value="Jogar!">
+	</form>
+	</div>
+	
+	<script src="./socketcluster-client.js"></script>
+	<script>
+		let socket = socketClusterClient.create({
+			hostname: "e3961eb630fb.ngrok.io",
+			port: 80
+		})
+		const form_register = document.getElementById("register")
+		form_register.addEventListener('submit', 
+			()=>{
+				socket.transmit('nickname', {nick: form_register['nickname'].value})
+				socket.transmit('HoldMyBear', true)
+				createCookie("id", socket.id, 0.001)
+				console.log("Cookies em conta.html ->",document.cookie)
+			})
+
+
+		function createCookie (name, value, days) {
+			var expires;
+			if (days) {
+				var date = new Date();
+				date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+				expires = "; expires=" + date.toGMTString();
+			}
+			else {
+				expires = "";
+			}
+			document.cookie = name + "=" + value + expires + "; path=/";
+			
+		}
+
+		function getCookie(cname) {
+			var name = cname + "=";
+			var decodedCookie = decodeURIComponent(document.cookie);
+			var ca = decodedCookie.split(';');
+				for(var i = 0; i <ca.length; i++) {
+					var c = ca[i];
+					while (c.charAt(0) == ' ') {
+					c = c.substring(1);
+					}
+					if (c.indexOf(name) == 0) {
+						return c.substring(name.length, c.length);
+					}
+				}
+			return "";
+		}
+
+	</script>
+</body>
+</html>

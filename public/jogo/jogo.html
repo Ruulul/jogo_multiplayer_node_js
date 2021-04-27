@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Meu primeiro jogo multiplayer</title>
+		
+		<style>
+			#screen {
+				border: 7px solid #DDA;
+				padding: 0;8
+				image-rendering: pixelated;
+				image-rendering: crisp-edges;
+				image-rendering: -moz-crisp-edges;
+				width: 320px;
+				height: 320px
+			}
+			* {
+				box-sizing: border-box;
+			}
+			body {
+				background-color: #dca;
+			}
+			.center-part {
+				width: 100%
+			}
+			.game-screen {
+				float: left;
+				border: 0;
+				padding: 0;
+			}
+			.score-table {
+				border: 0;
+				padding: 0;
+				font-family: courier;
+			}
+			.gamepad {
+				float: center;
+				margin-top: 327px;
+			}
+			.key-pressed {
+				background-color: blue;
+				float: left;
+				width: 106px;
+				height: 106px;
+				color: pink;
+			}
+			.key-pressed-up {
+				float: none;
+				background-color: blue;
+				width: 106px;
+				height: 106px;
+				margin-left: 106px;
+				margin-right: 106px;
+				color: pink;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="center-part">
+			<div class="game-screen">
+				<canvas id="screen" width="320" height="320">
+				</canvas>
+			</div>
+			<div class="score-table">
+				<ol id="score_table">
+				</ol>
+			</div>
+		</div>
+		<br>
+		<div class="gamepad" width="320" height="320">
+			<button type="button" class="key-pressed-up" id="up">UP</button><br>
+			<button type="button" class="key-pressed" id="left">LEFT</button>
+			<button type="button" class="key-pressed" id="down">DOWN</button>
+			<button type="button" class="key-pressed" id="right">RIGHT</button>
+		</div>
+		<script src="./socketcluster-client.js"></script>
+		<script type="module">
+			const screen = document.getElementById('screen')
+			const context = screen.getContext('2d')
+			const moving = {
+				'ArrowUp': false,
+				'ArrowDown': false,
+				'ArrowLeft': false,
+				'ArrowRight': false
+			}
+	
+			var state = undefined
+			var consts = undefined
+			var playerId = undefined
+			var score = undefined
+			let socket = socketClusterClient.create(
+				{
+				hostname: 'e3961eb630fb.ngrok.io',
+				port: 80
+				}
+			);
+			(async () => {
+				console.log('Requiring state')
+				console.log("cookies on jogo.html ->",document.cookie)
+				let command = await socket.invoke('setup',{oldId: getCookie("id")})
+				console.log('State received: ', command)
+				state = command.state
+				consts = command.consts
+				playerId = socket.id
+			})();
+
+			(async () => {
+				let game = socket.subscribe('game')
+				game.listener('subscribe').once()
+				for await (let data of game) {
+					state = data
+					score = []
+					for (const player in data.score) {
+						score.push({player, score:data.score[player]})
+					}
+					score.sort(
+						(a, b) => {
+							if (a.score < b.score)
+								return 1
+							if (a.score > b.score)
+								return -1
+							return 0
+						}
+					)
+					console.log(score)
+					setScore()
+				}
+			})();
+			document.addEventListener('keydown', 
+				(event)=>{
+					try {
+						moving[event.key] = true
+					} catch {
+						console.log('movimento inválido')
+					}
+				}
+			)
+			
+			document.addEventListener('keyup', (event)=>{
+				try {
+					moving[event.key] = false
+				} catch {
+					console.log('movimento inválido')
+				}
+			})
+			
+			mainloop()
+			function mainloop() {
+				createCookie("id", socket.id, 0.0001)
+				renderScreen();
+				for (const move in moving) {
+					if (moving[move])
+						socket.transmit('movement', {id: socket.id, KeyPressed: move, type: 'players'})
+				};
+				requestAnimationFrame(mainloop)
+			}
+			function renderScreen() {
+				if (consts){
+					context.fillStyle = consts.background_color;
+					context.fillRect(0,0, screen.width, screen.height);
+				
+					for (const type in state) {
+						for (const id in state[type].things) {
+							const thing = state[type].things[id]
+							if (id != playerId)
+								context.fillStyle = state[type].colorAll
+							else
+								context.fillStyle = state[type].colorMe
+							context.fillRect(
+								(thing.positionX-state[type].halfSize)*consts.scale,
+								(thing.positionY-state[type].halfSize)*consts.scale,
+								consts.scale*state[type].halfSize*2,
+								consts.scale*state[type].halfSize*2)
+						}
+					}
+				}
+			}
+			
+			function setScore() {
+				const score_table = document.getElementById('score_table')
+				if (!score_table)
+					return console.log("Caralho")
+				try {
+					const filhos = score_table.childNodes;
+					filhos.forEach((filho) =>{
+						filho.remove()
+					})
+				} catch (error) {
+					console.log("error>",error)
+					return console.log("Void table")
+				}
+				score.forEach( (player_score) => {
+					var li = document.createElement('li');
+					li.innerHTML = player_score.player
+					li.innerHTML += ': '+ player_score.score
+					if (player_score.score == 1)
+						li.innerHTML += ' casada'
+					else
+						li.innerHTML += ' casadas'
+					score_table.appendChild(li)
+				})
+			}
+			const up = document.getElementById("up")
+			const left = document.getElementById("left")
+			const right = document.getElementById("right")
+			const down = document.getElementById("down")
+			up.addEventListener("mousedown",()=>{
+				moving['ArrowUp'] = true
+			});
+			left.addEventListener("mousedown", ()=>{
+				moving['ArrowLeft'] = true
+			});
+			right.addEventListener("mousedown",()=>{
+				moving['ArrowRight'] = true
+			});
+			down.addEventListener("mousedown",()=>{
+				moving['ArrowDown'] = true
+			});
+			up.addEventListener("mouseup",()=>{
+				moving['ArrowUp'] = false
+			});
+			left.addEventListener("mouseup", ()=>{
+				moving['ArrowLeft'] = false
+			});
+			right.addEventListener("mouseup",()=>{
+				moving['ArrowRight'] = false
+			});
+			down.addEventListener("mouseup",()=>{
+				moving['ArrowDown'] = false
+			});
+			
+			up.addEventListener("touchstart",()=>{
+				moving['ArrowUp'] = true
+			});
+			left.addEventListener("touchstart", ()=>{
+				moving['ArrowLeft'] = true
+			});
+			right.addEventListener("touchstart",()=>{
+				moving['ArrowRight'] = true
+			});
+			down.addEventListener("touchstart",()=>{
+				moving['ArrowDown'] = true
+			});
+			up.addEventListener("touchend",()=>{
+				moving['ArrowUp'] = false
+			});
+			left.addEventListener("touchend", ()=>{
+				moving['ArrowLeft'] = false
+			});
+			right.addEventListener("touchend",()=>{
+				moving['ArrowRight'] = false
+			});
+			down.addEventListener("touchend",()=>{
+				moving['ArrowDown'] = false
+			});
+			
+			function createCookie (name, value, days) {
+				var expires;
+				if (days) {
+					var date = new Date();
+					date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+					expires = "; expires=" + date.toGMTString();
+				}
+				else {
+					expires = "";
+				}
+				document.cookie = name + "=" + value + expires + "; path=/";
+				
+			}
+
+			function getCookie(cname) {
+				var name = cname + "=";
+				var decodedCookie = decodeURIComponent(document.cookie);
+				var ca = decodedCookie.split(';');
+					for(var i = 0; i <ca.length; i++) {
+						var c = ca[i];
+						while (c.charAt(0) == ' ') {
+						c = c.substring(1);
+						}
+						if (c.indexOf(name) == 0) {
+							return c.substring(name.length, c.length);
+						}
+					}
+				return "";
+			}
+		</script>
+	</body>
+</html>

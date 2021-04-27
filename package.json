@@ -1,0 +1,20 @@
+{
+  "name": "jogo_multiplayer",
+  "version": "1.0.0",
+  "description": "Meu primeiro servidor",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "cookie-parser": "^1.4.5",
+    "express": "^4.17.1",
+    "express-session": "^1.17.1",
+    "socketcluster-client": "^16.0.2",
+    "socketcluster-server": "^16.0.1"
+  }
+}
